@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Жетончики - Учебная система</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 10px;
+        }
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 20px;
+            margin-bottom: 5px;
+        }
+        .role-badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 12px;
+        }
+        .menu {
+            padding: 20px;
+        }
+        .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .btn {
+            background: #4facfe;
+            color: white;
+            border: none;
+            padding: 15px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+        }
+        .btn:hover {
+            background: #00f2fe;
+            transform: translateY(-2px);
+        }
+        .btn.admin { background: #ff6b6b; }
+        .btn.admin:hover { background: #ff5252; }
+        .btn.teacher { background: #4ecdc4; }
+        .btn.teacher:hover { background: #45b7aa; }
+        .btn.student { background: #ffe66d; color: #333; }
+        .btn.student:hover { background: #ffed4e; }
+        .section {
+            display: none;
+            padding: 20px;
+            border-top: 1px solid #eee;
+        }
+        .section.active { display: block; }
+        .list-item {
+            background: #f8f9fa;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-left: 4px solid #4facfe;
+        }
+        .grade-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .grade-mark {
+            font-weight: bold;
+            font-size: 18px;
+            min-width: 30px;
+            text-align: center;
+        }
+        .grade-mark.n { color: #999; }
+        .grade-mark.fail { color: #ff6b6b; }
+        .grade-mark.pass { color: #4ecdc4; }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #4facfe;
+        }
+        .token-balance {
+            background: linear-gradient(135deg, #ffe66d 0%, #ffed4e 100%);
+            color: #333;
+            padding: 15px;
+            border-radius: 12px;
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+            margin: 15px 0;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background: #e1e5e9;
+            border-radius: 5px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: #4ecdc4;
+            transition: width 0.3s;
+        }
+        .ktp-type { 
+            background: #f0f8ff; 
+            padding: 8px 12px; 
+            border-radius: 20px; 
+            font-size: 12px; 
+            display: inline-block;
+            margin: 2px;
+        }
+        .lecture { background: #fff3cd; color: #856404; }
+        .practice { background: #d1ecf1; color: #0c5460; }
+        .upload-area {
+            border: 2px dashed #4facfe;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .upload-area:hover {
+            background: #f0f8ff;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Шапка -->
+        <div class="header">
+            <h1>🎓 Жетончики</h1>
+            <div class="role-badge" id="roleBadge">Загрузка...</div>
+        </div>
+
+        <!-- Главное меню -->
+        <div id="mainMenu" class="menu">
+            <div id="adminMenu" class="menu-grid" style="display:none;">
+                <button class="btn admin" onclick="showSection('uploadTeachers')">📚 Загрузить преподавателей</button>
+                <button class="btn admin" onclick="showSection('generateTokens')">🎫 Токены преподавателей</button>
+                <button class="btn admin" onclick="showSection('listTeachers')">👨‍🏫 Список преподавателей</button>
+                <button class="btn admin" onclick="showSection('listStudents')">👨‍🎓 Список студентов</button>
+                <button class="btn admin" onclick="showSection('sendNews')">📢 Отправить новость</button>
+                <button class="btn admin" onclick="downloadTemplate('teachers')">📄 Шаблон преподавателей</button>
+            </div>
+
+            <div id="teacherMenu" class="menu-grid" style="display:none;">
+                <button class="btn teacher" onclick="showSection('addGroup')">👥 Добавить группу</button>
+                <button class="btn teacher" onclick="showSection('addDiscipline')">📖 Добавить дисциплину</button>
+                <button class="btn teacher" onclick="showSection('myGroups')">🏘️ Мои группы</button>
+                <button class="btn teacher" onclick="showSection('myDisciplines')">📚 Мои дисциплины</button>
+                <button class="btn teacher" onclick="showSection('createKtp')">➕ Создать КТП</button>
+                <button class="btn teacher" onclick="showSection('viewKtp')">📋 КТП</button>
+                <button class="btn teacher" onclick="showSection('grade')">✏️ Выставить оценки</button>
+                <button class="btn teacher" onclick="showSection('editGrade')">🔄 Редактировать</button>
+                <button class="btn teacher" onclick="showSection('students')">👨‍🎓 Студенты</button>
+                <button class="btn teacher" onclick="showSection('gradebook')">📊 Ведомость</button>
+                <button class="btn teacher" onclick="showSection('rewards')">🎁 Награды</button>
+                <button class="btn teacher" onclick="showSection('tokensPerAttendance')">💰 Жетоны за посещение</button>
+                <button class="btn teacher" onclick="showSection('sendGroupNews')">📢 Новость группе</button>
+                <button class="btn teacher" onclick="downloadTemplate('students')">📄 Шаблон студентов</button>
+            </div>
+
+            <div id="studentMenu" class="menu-grid" style="display:none;">
+                <button class="btn student" onclick="showSection('grades')">📋 Мои оценки</button>
+                <button class="btn student" onclick="showSection('teachers')">👨‍🏫 Преподаватели</button>
+                <button class="btn student" onclick="showSection('tokens')">💰 Мои жетоны</button>
+                <button class="btn student" onclick="showSection('rewardsShop')">🎁 Магазин</button>
+                <button class="btn student" onclick="showSection('practices')">✅ Практики</button>
+                <button class="btn student" onclick="exportGrades()">📄 Экспорт оценок</button>
+            </div>
+        </div>
+
+        <!-- СЕКЦИИ -->
+        
+        <!-- Админ: Загрузка преподавателей -->
+        <div id="uploadTeachers" class="section">
+            <h3>📚 Загрузить преподавателей</h3>
+            <div class="upload-area" onclick="document.getElementById('teachersFile').click()">
+                <p>📁 Нажмите или перетащите Excel файл</p>
+                <small>Колонка: "ФИО преподавателя"</small>
+            </div>
+            <input type="file" id="teachersFile" accept=".xlsx" style="display:none;" onchange="uploadTeachers()">
+        </div>
+
+        <!-- Админ: Генерация токенов -->
+        <div id="generateTokens" class="section">
+            <h3>🎫 Токены преподавателей</h3>
+            <button class="btn admin" onclick="generateTokens()">Сгенерировать и скачать</button>
+        </div>
+
+        <!-- Админ: Список преподавателей -->
+        <div id="listTeachers" class="section">
+            <h3>👨‍🏫 Преподаватели</h3>
+            <div id="teachersList" class="loading">Загрузка...</div>
+        </div>
+
+        <!-- Админ: Список студентов -->
+        <div id="listStudents" class="section">
+            <h3>👨‍🎓 Студенты</h3>
+            <div id="studentsList" class="loading">Загрузка...</div>
+        </div>
+
+        <!-- Админ: Отправка новости -->
+        <div id="sendNews" class="section">
+            <h3>📢 Отправить новость</h3>
+            <select id="newsRecipient">
+                <option value="students">Студенты</option>
+                <option value="teachers">Преподаватели</option>
+                <option value="all">Все</option>
+            </select>
+            <textarea id="newsText" placeholder="Текст новости..." rows="4"></textarea>
+            <button class="btn admin" onclick="sendNews()">Отправить</button>
+        </div>
+
+        <!-- Преподаватель: Добавить группу -->
+        <div id="addGroup" class="section">
+            <h3>👥 Добавить группу</h3>
+            <div class="upload-area" onclick="document.getElementById('groupFile').click()">
+                <p>📁 Загрузите студентов</p>
+            </div>
+            <input type="file" id="groupFile" accept=".xlsx" style="display:none;" onchange="uploadGroup()">
+            <input type="text" id="groupName" placeholder="Название группы">
+            <button class="btn teacher" onclick="saveGroup()">Сохранить группу</button>
+        </div>
+
+        <!-- Преподаватель: Добавить дисциплину -->
+        <div id="addDiscipline" class="section">
+            <h3>📖 Добавить дисциплину</h3>
+            <input type="text" id="disciplineName" placeholder="Название дисциплины">
+            <input type="number" id="requiredPractices" placeholder="Количество практик" min="0">
+            <select id="disciplineGroup"></select>
+            <button class="btn teacher" onclick="saveDiscipline()">Создать</button>
+        </div>
+
+        <!-- Преподаватель: Мои группы -->
+        <div id="myGroups" class="section">
+            <h3>🏘️ Мои группы</h3>
+            <div id="groupsList"></div>
+        </div>
+
+        <!-- Преподаватель: Мои дисциплины -->
+        <div id="myDisciplines" class="section">
+            <h3>📚 Мои дисциплины</h3>
+            <div id="disciplinesList"></div>
+        </div>
+
+        <!-- Преподаватель: Создать КТП -->
+        <div id="createKtp" class="section">
+            <h3>➕ Создать КТП</h3>
+            <select id="ktpDiscipline"></select>
+            <select id="ktpType">
+                <option value="lecture">Лекция</option>
+                <option value="practice">Практика</option>
+            </select>
+            <input type="number" id="practiceNumber" placeholder="№ практики (для практик)" min="1" max="20">
+            <textarea id="ktpDescription" placeholder="Тема/описание"></textarea>
+            <textarea id="ktpHomework" placeholder="Домашнее задание (или 'нет')"></textarea>
+            <button class="btn teacher" onclick="createKtp()">Создать КТП</button>
+        </div>
+
+        <!-- Преподаватель: Просмотр КТП -->
+        <div id="viewKtp" class="section">
+            <h3>📋 КТП</h3>
+            <select id="viewKtpDiscipline"></select>
+            <div id="ktpList"></div>
+        </div>
+
+        <!-- Преподаватель: Выставить оценки -->
+        <div id="grade" class="section">
+            <h3>✏️ Выставить оценки</h3>
+            <select id="gradeDiscipline"></select>
+            <select id="gradeKtpType">
+                <option value="lecture">Лекция</option>
+                <option value="practice">Практика</option>
+            </select>
+            <select id="gradeKtp"></select>
+            <input type="date" id="gradeDate">
+            <button class="btn teacher" onclick="startGrading()">Начать выставление</button>
+            <div id="gradingForm" style="display:none;">
+                <select id="gradingStudent"></select>
+                <select id="gradeValue">
+                    <option value="-1">н</option>
+                    <option value="0">0</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                </select>
+                <button class="btn teacher" onclick="saveGrade()">Сохранить</button>
+            </div>
+        </div>
+
+        <!-- Студент: Оценки -->
+        <div id="grades" class="section">
+            <h3>📋 Мои оценки</h3>
+            <div id="studentGrades"></div>
+        </div>
+
+        <!-- Студент: Преподаватели -->
+        <div id="teachers" class="section">
+            <h3>👨‍🏫 Мои преподаватели</h3>
+            <div id="studentTeachers"></div>
+        </div>
+
+        <!-- Студент: Жетоны -->
+        <div id="tokens" class="section">
+            <h3>💰 Мои жетоны</h3>
+            <div id="studentTokens"></div>
+        </div>
+
+        <!-- Студент: Магазин -->
+        <div id="rewardsShop" class="section">
+            <h3>🎁 Магазин наград</h3>
+            <div id="shopRewards"></div>
+        </div>
+
+        <!-- Студент: Практики -->
+        <div id="practices" class="section">
+            <h3>✅ Мои практики</h3>
+            <div id="studentPractices"></div>
+        </div>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        tg.MainButton.setText('Обновить').show().onClick(refreshData);
+
+        let userRole = '';
+        let userData = {};
+
+        // Инициализация
+        async function init() {
+            tg.ready();
+            await loadUserData();
+            showMenu();
+            refreshData();
+        }
+
+        async function loadUserData() {
+            try {
+                const response = await fetch('/api/user', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: tg.initDataUnsafe.user.id })
+                });
+                userData = await response.json();
+                userRole = userData.role;
+                document.getElementById('roleBadge').textContent = 
+                    userRole === 'admin' ? '👑 АДМИН' :
+                    userRole === 'teacher' ? '👨‍🏫 ПРЕПОДАВАТЕЛЬ' : '👨‍🎓 СТУДЕНТ';
+            } catch(e) {
+                document.getElementById('roleBadge').textContent = 'Ошибка';
+            }
+        }
+
+        function showMenu() {
+            document.getElementById('adminMenu').style.display = userRole === 'admin' ? 'grid' : 'none';
+            document.getElementById('teacherMenu').style.display = userRole === 'teacher' ? 'grid' : 'none';
+            document.getElementById('studentMenu').style.display = userRole === 'student' ? 'grid' : 'none';
+        }
+
+        function showSection(sectionId) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.getElementById(sectionId).classList.add('active');
+            if (['addDiscipline', 'createKtp', 'grade'].includes(sectionId)) {
+                loadSelectOptions(sectionId);
+            }
+        }
+
+        async function refreshData() {
+            tg.MainButton.setText('🔄 Обновление...');
+            switch(userRole) {
+                case 'admin':
+                    await Promise.all([loadTeachersList(), loadStudentsList()]);
+                    break;
+                case 'teacher':
+                    await Promise.all([
+                        loadGroupsList(), loadDisciplinesList(), 
+                        loadKtpList(), loadGradeOptions()
+                    ]);
+                    break;
+                case 'student':
+                    await Promise.all([
+                        loadStudentGrades(), loadStudentTeachers(), 
+                        loadStudentTokens(), loadStudentPractices(), loadShopRewards()
+                    ]);
+                    break;
+            }
+            tg.MainButton.setText('Обновить');
+        }
+
+        // АДМИН ФУНКЦИИ
+        async function uploadTeachers() {
+            const file = document.getElementById('teachersFile').files[0];
+            if (!file) return showMessage('Выберите файл', 'error');
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('user_id', tg.initDataUnsafe.user.id);
+            
+            try {
+                const response = await fetch('/api/upload_teachers', { method: 'POST', body: formData });
+                const result = await response.json();
+                showMessage(result.message, 'success');
+            } catch(e) {
+                showMessage('Ошибка загрузки', 'error');
+            }
+        }
+
+        async function generateTokens() {
+            try {
+                const response = await fetch('/api/generate_tokens', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: tg.initDataUnsafe.user.id })
+                });
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'tokens.xlsx';
+                a.click();
+                showMessage('Токены скачаны!', 'success');
+            } catch(e) {
+                showMessage('Ошибка генерации', 'error');
+            }
+        }
+
+        async function loadTeachersList() {
+            const response = await fetch('/api/teachers_list');
+            const teachers = await response.json();
+            document.getElementById('teachersList').innerHTML = 
+                teachers.map(t => `<div class="list-item">${t.full_name}</div>`).join('');
+        }
+
+        async function loadStudentsList() {
+            const response = await fetch('/api/students_list');
+            const students = await response.json();
+            document.getElementById('studentsList').innerHTML = 
+                students.map(s => `<div class="list-item">${s.full_name} (${s.group_name})</div>`).join('');
+        }
+
+        async function sendNews() {
+            const recipient = document.getElementById('newsRecipient').value;
+            const text = document.getElementById('newsText').value.trim();
+            if (!text) return showMessage('Введите текст', 'error');
+            
+            try {
+                await fetch('/api/send_news', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ recipient, text, user_id: tg.initDataUnsafe.user.id })
+                });
+                showMessage('Новость отправлена!', 'success');
+                document.getElementById('newsText').value = '';
+            } catch(e) {
+                showMessage('Ошибка отправки', 'error');
+            }
+        }
+
+        // ПРЕПОДАВАТЕЛЬ ФУНКЦИИ
+        async function uploadGroup() {
+            const file = document.getElementById('groupFile').files[0];
+            if (!file) return;
+            // Аналогично uploadTeachers
+            showMessage('Группа загружена!', 'success');
+        }
+
+        async function saveGroup() {
+            const name = document.getElementById('groupName').value.trim();
+            if (!name) return showMessage('Введите название', 'error');
+            showMessage(`Группа "${name}" создана!`, 'success');
+            document.getElementById('groupName').value = '';
+        }
+
+        async function loadSelectOptions(section) {
+            if (section === 'addDiscipline') {
+                const response = await fetch('/api/teacher_groups');
+                const groups = await response.json();
+                const select = document.getElementById('disciplineGroup');
+                select.innerHTML = groups.map(g => `<option value="${g}">${g}</option>`).join('');
+            }
+            // Другие select...
+        }
+
+        async function saveDiscipline() {
+            const name = document.getElementById('disciplineName').value;
+            const practices = document.getElementById('requiredPractices').value;
+            const group = document.getElementById('disciplineGroup').value;
+            showMessage(`Дисциплина "${name}" создана!`, 'success');
+            document.getElementById('disciplineName').value = '';
+        }
+
+        async function loadGroupsList() {
+            const response = await fetch('/api/teacher_groups');
+            const groups = await response.json();
+            document.getElementById('groupsList').innerHTML = 
+                groups.map(g => `<div class="list-item">${g} <button class="btn" onclick="deleteGroup('${g}')">Удалить</button></div>`).join('');
+        }
+
+        async function loadDisciplinesList() {
+            const response = await fetch('/api/teacher_disciplines');
+            const disciplines = await response.json();
+            document.getElementById('disciplinesList').innerHTML = 
+                disciplines.map(d => `<div class="list-item">${d.name} (${d.group_name}) <button class="btn" onclick="deleteDiscipline(${d.id})">Удалить</button></div>`).join('');
+        }
+
+        async function createKtp() {
+            // Логика создания КТП
+            showMessage('КТП создано!', 'success');
+        }
+
+        async function loadKtpList() {
+            // Загрузка КТП
+        }
+
+        async function startGrading() {
+            document.getElementById('gradingForm').style.display = 'block';
+            // Загрузка студентов для select
+        }
+
+        async function saveGrade() {
+            showMessage('Оценка сохранена!', 'success');
+        }
+
+        // СТУДЕНТ ФУНКЦИИ
+        async function loadStudentGrades() {
+            const response = await fetch('/api/student_grades');
+            const grades = await response.json();
+            document.getElementById('studentGrades').innerHTML = grades.map(g => `
+                <div class="grade-item">
+                    <span>${g.date} | ${g.discipline} | ${g.ktp}</span>
+                    <span class="grade-mark ${g.grade === -1 ? 'n' : g.grade < 3 ? 'fail' : 'pass'}">${g.grade_str}</span>
+                </div>
+            `).join('');
+        }
+
+        async function loadStudentTeachers() {
+            const response = await fetch('/api/student_teachers');
+            const teachers = await response.json();
+            document.getElementById('studentTeachers').innerHTML = 
+                teachers.map(t => `<div class="list-item">${t.full_name} (${t.tokens} 💰)</div>`).join('');
+        }
+
+        async function loadStudentTokens() {
+            const response = await fetch('/api/student_tokens');
+            const tokens = await response.json();
+            document.getElementById('studentTokens').innerHTML = 
+                tokens.map(t => `<div class="token-balance">${t.full_name}: ${t.tokens} 💰</div>`).join('');
+        }
+
+        async function loadStudentPractices() {
+            const response = await fetch('/api/student_practices');
+            const practices = await response.json();
+            document.getElementById('studentPractices').innerHTML = practices.map(p => `
+                <div class="list-item">
+                    <strong>${p.name}</strong><br>
+                    Сдано: ${p.completed}/${p.required} практик
+                    <div class="progress-bar"><div class="progress-fill" style="width: ${p.percentage}%"></div></div>
+                    <span>${p.status}</span>
+                </div>
+            `).join('');
+        }
+
+        async function loadShopRewards() {
+            const response = await fetch('/api/shop_rewards');
+            const rewards = await response.json();
+            document.getElementById('shopRewards').innerHTML = rewards.map(r => `
+                <div class="list-item">
+                    <strong>${r.name}</strong> (${r.discipline})<br>
+                    ${r.description} | ${r.price} 💰<br>
+                    <small>Преподаватель: ${r.teacher}</small>
+                    ${r.can_buy ? `<button class="btn student" onclick="buyReward(${r.id})">Купить</button>` : 
+                    `<span style="color:red">(недостаточно 💰)</span>`}
+                </div>
+            `).join('');
+        }
+
+        async function buyReward(id) {
+            try {
+                await fetch(`/api/buy_reward/${id}`, { method: 'POST' });
+                showMessage('Награда куплена!', 'success');
+                refreshData();
+            } catch(e) {
+                showMessage('Ошибка покупки', 'error');
+            }
+        }
+
+        async function exportGrades() {
+            try {
+                const response = await fetch('/api/export_grades');
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'grades.xlsx';
+                a.click();
+            } catch(e) {
+                showMessage('Ошибка экспорта', 'error');
+            }
+        }
+
+        function downloadTemplate(type) {
+            // Скачивание шаблона
+            window.open(`/api/template_${type}`);
+        }
+
+        function showMessage(text, type) {
+            const msg = document.createElement('div');
+            msg.className = `list-item ${type}`;
+            msg.textContent = text;
+            document.querySelector('.active')?.appendChild(msg);
+            setTimeout(() => msg.remove(), 3000);
+        }
+
+        // Запуск
+        init();
+    </script>
+</body>
+</html>
